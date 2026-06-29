@@ -142,7 +142,7 @@
       <div class="dot checking" id="db-dot"></div>
       <span id="db-label">Menghubungkan...</span>
     </div>
-    <div class="api-indicator" style="color:var(--text-dim);font-size:11px;" id="api-url-display">API: localhost:8000</div>
+    <div class="api-indicator" style="color:var(--text-dim);font-size:11px;" id="api-url-display">API: Checking...</div>
   </div>
 </div>
 
@@ -296,7 +296,7 @@
       <div class="page-header"><h1>Pengaturan</h1><p>Konfigurasi koneksi ke API server.</p></div>
       <div class="card">
         <div class="card-title">Koneksi API</div>
-        <div class="form-group"><label>Base URL API</label><input type="text" id="cfg-url" value="http://localhost:8000" /></div>
+        <div class="form-group"><label>Base URL API</label><input type="text" id="cfg-url" value="" placeholder="Kosongkan untuk menggunakan domain saat ini" /></div>
         <div class="action-row"><button class="btn btn-primary" onclick="saveSettings()">Simpan & Uji Koneksi</button><button class="btn btn-outline" onclick="resetSettings()">Reset ke Default</button></div>
       </div>
       <div class="card">
@@ -349,9 +349,29 @@
 <div id="toast-container"></div>
 
 <script>
+  // ── API Configuration ──
+  // Gunakan string kosong '' sebagai default agar fetch menggunakan relative path (domain saat ini)
   let API_BASE = localStorage.getItem('orbita_api') || ''; 
-  document.getElementById('cfg-url').value = API_BASE;
-  document.getElementById('api-url-display').textContent = 'API: ' + new URL(API_BASE).host;
+  
+  // Fungsi helper untuk menampilkan host API dengan aman (menghindari error URL constructor)
+  function updateApiDisplay() {
+    const displayEl = document.getElementById('api-url-display');
+    if (!API_BASE || API_BASE.trim() === '') {
+      // Jika kosong, gunakan domain browser saat ini
+      displayEl.textContent = 'API: ' + window.location.host;
+    } else {
+      try {
+        displayEl.textContent = 'API: ' + new URL(API_BASE).host;
+      } catch (e) {
+        displayEl.textContent = 'API: Invalid URL';
+      }
+    }
+    // Update input field di settings
+    document.getElementById('cfg-url').value = API_BASE;
+  }
+
+  // Jalankan saat load pertama kali
+  updateApiDisplay();
 
   // ── Navigation ──
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -369,24 +389,27 @@
     const t = document.createElement('div');
     t.className = 'toast ' + type;
     const icons = { success:'✅', error:'❌', info:'💡' };
-    t.innerHTML = `<span>${icons[type]||'💡'}</span><span>${msg}</span>`;
+    t.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
     document.getElementById('toast-container').appendChild(t);
     setTimeout(() => t.remove(), 4000);
   }
 
   // ── Settings ──
   function saveSettings() {
-    API_BASE = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+    let val = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+    API_BASE = val;
     localStorage.setItem('orbita_api', API_BASE);
-    document.getElementById('api-url-display').textContent = 'API: ' + new URL(API_BASE).host;
+    updateApiDisplay();
     doHealthCheck();
     toast('Pengaturan disimpan.', 'info');
   }
+
   function resetSettings() {
-    API_BASE = 'http://localhost:8000';
+    API_BASE = '';
     document.getElementById('cfg-url').value = API_BASE;
     localStorage.removeItem('orbita_api');
-    toast('Reset ke default.', 'info');
+    updateApiDisplay();
+    toast('Reset ke default (Relative Path).', 'info');
   }
 
   // ── Dynamic Form ──
@@ -433,7 +456,7 @@
     document.getElementById('ingest-response').textContent = '— Form direset —';
   }
 
-  // ── Ingest ──
+  // ─ Ingest ──
   function collectRates() {
     return Array.from(document.querySelectorAll('#rates-list .dynamic-row')).map(row => {
       const i = row.querySelectorAll('input');
@@ -460,7 +483,9 @@
     if (!payload.supplier_id || !payload.name) { toast('Supplier ID dan Nama Hotel wajib diisi.', 'error'); return; }
     btn.disabled = true; spinner.style.display = 'inline-block'; box.textContent = 'Mengirim...';
     try {
-      const res = await fetch(API_BASE + '/ingest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      // Gunakan relative path jika API_BASE kosong
+      const url = API_BASE ? API_BASE + '/ingest' : '/ingest';
+      const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await res.json();
       box.innerHTML = res.ok ? `<span class="ok">// ✅ ${res.status} OK</span>\n${JSON.stringify(data,null,2)}` : `<span class="err">// ❌ ${res.status}</span>\n${JSON.stringify(data,null,2)}`;
       if (res.ok) { toast('Data hotel berhasil dikirim!', 'success'); loadDashboard(); }
@@ -476,7 +501,8 @@
     const tbody = document.getElementById('manage-body');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim);">Memuat...</td></tr>';
     try {
-      const res = await fetch(API_BASE + '/hotels/list');
+      const url = API_BASE ? API_BASE + '/hotels/list' : '/hotels/list';
+      const res = await fetch(url);
       const data = await res.json();
       if (!data.hotels || data.hotels.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">✏️</div>Belum ada hotel. Tambahkan lewat Supplier Ingest.</div></td></tr>';
@@ -521,7 +547,8 @@
     const name = document.getElementById('edit-name').value.trim();
     if (!name) { toast('Nama hotel tidak boleh kosong.', 'error'); return; }
     try {
-      const res = await fetch(API_BASE + '/hotels/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+      const url = API_BASE ? API_BASE + '/hotels/' + id : '/hotels/' + id;
+      const res = await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
       const data = await res.json();
       document.getElementById('manage-response').innerHTML = res.ok
         ? `<span class="ok">// ✅ Update berhasil</span>\n${JSON.stringify(data,null,2)}`
@@ -535,7 +562,8 @@
     const id   = document.getElementById('delete-id').value;
     const name = document.getElementById('delete-name').textContent;
     try {
-      const res = await fetch(API_BASE + '/hotels/' + id, { method:'DELETE' });
+      const url = API_BASE ? API_BASE + '/hotels/' + id : '/hotels/' + id;
+      const res = await fetch(url, { method:'DELETE' });
       const data = await res.json();
       document.getElementById('manage-response').innerHTML = res.ok
         ? `<span class="ok">// ✅ Delete berhasil</span>\n${JSON.stringify(data,null,2)}`
@@ -551,12 +579,15 @@
     const spinner = document.getElementById('search-spinner');
     const dateVal = document.getElementById('guest-date').value;
     btn.disabled = true; spinner.style.display = 'inline-block';
-    await fetchHotels(API_BASE + '/hotels' + (dateVal ? '?date='+dateVal : ''));
+    let url = API_BASE ? API_BASE + '/hotels' : '/hotels';
+    if (dateVal) url += '?date='+dateVal;
+    await fetchHotels(url);
     btn.disabled = false; spinner.style.display = 'none';
   }
   async function clearFilter() {
     document.getElementById('guest-date').value = '';
-    await fetchHotels(API_BASE + '/hotels');
+    const url = API_BASE ? API_BASE + '/hotels' : '/hotels';
+    await fetchHotels(url);
   }
   async function fetchHotels(url) {
     const tbody = document.getElementById('hotels-body');
@@ -588,7 +619,7 @@
     }
   }
 
-  // ── Health Check ──
+  // ── Health Check ─
   async function doHealthCheck() {
     const box = document.getElementById('health-response');
     const dbDot = document.getElementById('db-dot');
@@ -596,7 +627,8 @@
     dbDot.className = 'dot checking'; dbLabel.textContent = 'Memeriksa...';
     const start = Date.now();
     try {
-      const res  = await fetch(API_BASE + '/health');
+      const url = API_BASE ? API_BASE + '/health' : '/health';
+      const res  = await fetch(url);
       const data = await res.json();
       const ms   = Date.now() - start;
       const ok   = res.ok && data.status === 'ok';
@@ -626,7 +658,8 @@
   // ── Dashboard ──
   async function loadDashboard() {
     try {
-      const res  = await fetch(API_BASE + '/hotels');
+      const url = API_BASE ? API_BASE + '/hotels' : '/hotels';
+      const res  = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       const hotels = data.hotels || [];
@@ -650,6 +683,7 @@
     } catch(e) {}
   }
 
+  // Init
   doHealthCheck();
   loadDashboard();
   setInterval(doHealthCheck, 30000);
