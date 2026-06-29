@@ -349,7 +349,7 @@
 <div id="toast-container"></div>
 
 <script>
-  let API_BASE = localStorage.getItem('orbita_api') || 'http://localhost:8000';
+  let API_BASE = localStorage.getItem('orbita_api') || ''; 
   document.getElementById('cfg-url').value = API_BASE;
   document.getElementById('api-url-display').textContent = 'API: ' + new URL(API_BASE).host;
 
