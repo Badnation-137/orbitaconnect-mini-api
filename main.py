@@ -257,16 +257,17 @@ def health():
         raise HTTPException(status_code=503, detail=f"Database error: {str(e)}")
 
 # ── Root: Serve Frontend Dashboard ──────────────────────────────────────────
-# Mount static files DI BAWAH semua endpoint agar tidak menabrak route API
-frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
-if os.path.exists(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
-else:
-    @app.get("/", include_in_schema=False)
-    def root():
-        return {
-            "app": "OrbitaConnect Mini API",
-            "version": "1.0.0",
-            "docs": "/docs",
-            "message": "Frontend folder not found. Use /docs for API documentation."
-        }
+from fastapi.responses import HTMLResponse
+
+@app.get("/", include_in_schema=False)
+async def read_root():
+    frontend_path = os.path.join(os.path.dirname(__file__), "frontend", "index.html")
+    if os.path.exists(frontend_path):
+        with open(frontend_path, encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    else:
+        raise HTTPException(status_code=404, detail="Frontend index.html not found")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
