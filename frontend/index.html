@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OrbitaConnect Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:       #0F1B2D;
+    --navy-light: #1E2D42;
+    --navy-mid:   #263548;
+    --amber:      #F59E0B;
+    --amber-dim:  #D97706;
+    --amber-glow: rgba(245,158,11,0.15);
+    --text-main:  #F8FAFC;
+    --text-muted: #94A3B8;
+    --text-dim:   #64748B;
+    --success:    #10B981;
+    --danger:     #EF4444;
+    --warning:    #F59E0B;
+    --border:     rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.15);
+    --radius-sm:  6px;
+    --radius-md:  10px;
+    --radius-lg:  14px;
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--navy); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+  #status-bar { background: var(--navy-light); border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 44px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .status-brand { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--amber); }
+  .status-brand span { color: var(--text-main); font-weight: 400; }
+  .status-right { display: flex; align-items: center; gap: 1.5rem; }
+  .api-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); transition: background 0.4s; }
+  .dot.ok    { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .dot.error { background: var(--danger);  box-shadow: 0 0 6px var(--danger); }
+  .dot.checking { background: var(--warning); animation: pulse-dot 1s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+  #sidebar { width: 220px; flex-shrink: 0; background: var(--navy-light); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.25rem 0; overflow-y: auto; }
+  .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--text-dim); padding: 0 1.25rem; margin-bottom: 0.5rem; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 1.25rem; font-size: 13.5px; color: var(--text-muted); cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s; user-select: none; }
+  .nav-item:hover { color: var(--text-main); background: rgba(255,255,255,0.04); }
+  .nav-item.active { color: var(--amber); border-left-color: var(--amber); background: var(--amber-glow); font-weight: 500; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0; }
+  .sidebar-footer { margin-top: auto; padding: 1rem 1.25rem 0; font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+  #main { flex: 1; overflow-y: auto; padding: 2rem; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .page-header { margin-bottom: 2rem; }
+  .page-header h1 { font-size: 22px; font-weight: 700; }
+  .page-header p  { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; }
+  .card { background: var(--navy-light); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: var(--navy-mid); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem; }
+  .metric-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 700; }
+  .metric-value.amber { color: var(--amber); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+  input, select { background: var(--navy); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 13.5px; padding: 8px 12px; outline: none; transition: border-color 0.15s; width: 100%; }
+  input:focus, select:focus { border-color: var(--amber); }
+  input::placeholder { color: var(--text-dim); }
+  .dynamic-section { margin-top: 1.25rem; }
+  .dynamic-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+  .dynamic-section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .dynamic-rows { display: flex; flex-direction: column; gap: 10px; }
+  .dynamic-row { display: grid; gap: 8px; background: var(--navy-mid); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; }
+  .rate-row  { grid-template-columns: 1fr 1fr 1fr 1fr 32px; }
+  .avail-row { grid-template-columns: 1fr 1fr 1fr 32px; }
+  .remove-btn { background: none; border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-sm); color: var(--danger); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; align-self: end; height: 34px; width: 32px; transition: background 0.15s; }
+  .remove-btn:hover { background: rgba(239,68,68,0.1); }
+  .btn { padding: 9px 18px; border-radius: var(--radius-md); font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--amber); color: #1a0e00; }
+  .btn-primary:hover { background: var(--amber-dim); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-outline { background: transparent; border: 1px solid var(--border-hover); color: var(--text-muted); }
+  .btn-outline:hover { color: var(--text-main); border-color: var(--amber); }
+  .btn-danger { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); font-size: 12px; padding: 6px 12px; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text-main); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+  #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--navy-mid); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 10px; animation: slide-in 0.2s ease; max-width: 340px; border-left: 3px solid var(--text-dim); }
+  .toast.success { border-left-color: var(--success); }
+  .toast.error   { border-left-color: var(--danger); }
+  .toast.info    { border-left-color: var(--amber); }
+  @keyframes slide-in { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+  tbody td { padding: 11px 12px; color: var(--text-main); }
+  .td-muted { color: var(--text-muted); }
+  .badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+  .badge-green  { background: rgba(16,185,129,0.12); color: #10B981; }
+  .badge-amber  { background: var(--amber-glow); color: var(--amber); }
+  .badge-red    { background: rgba(239,68,68,0.12); color: var(--danger); }
+  .response-box { background: var(--navy); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 12px; color: #7DD3FC; white-space: pre-wrap; word-break: break-all; min-height: 60px; max-height: 300px; overflow-y: auto; line-height: 1.6; }
+  .response-box .ok    { color: var(--success); }
+  .response-box .err   { color: var(--danger); }
+  .search-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 1.25rem; }
+  .search-row .form-group { flex: 1; margin: 0; }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-dim); font-size: 14px; }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .action-row { display: flex; gap: 10px; align-items: center; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top-color: currentColor; border-radius: 50%; animation: spin 0.6s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--navy-light); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; width: 420px; max-width: 95vw; }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.25rem; }
+  /* Manage table actions */
+  .tbl-actions { display: flex; gap: 6px; }
+  .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .health-item { background: var(--navy-mid); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.25rem; display: flex; align-items: center; gap: 14px; }
+  .health-icon { width: 42px; height: 42px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .health-icon.ok    { background: rgba(16,185,129,0.12); color: var(--success); }
+  .health-icon.error { background: rgba(239,68,68,0.12);  color: var(--danger); }
+  .health-icon.idle  { background: rgba(255,255,255,0.05); color: var(--text-dim); }
+  .health-info-label { font-size: 12px; color: var(--text-dim); }
+  .health-info-value { font-size: 14px; font-weight: 500; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <div class="status-brand">ORBITA<span>Connect</span></div>
+  <div class="status-right">
+    <div class="api-indicator">
+      <div class="dot checking" id="db-dot"></div>
+      <span id="db-label">Menghubungkan...</span>
+    </div>
+    <div class="api-indicator" style="color:var(--text-dim);font-size:11px;" id="api-url-display">API: localhost:8000</div>
+  </div>
+</div>
+
+<div class="app-body">
+  <nav id="sidebar">
+    <div class="sidebar-label">Navigasi</div>
+    <div class="nav-item active" data-panel="dashboard">📊 Dashboard</div>
+    <div class="nav-item" data-panel="supplier">📤 Supplier Ingest</div>
+    <div class="nav-item" data-panel="manage">✏️ Kelola Hotel</div>
+    <div class="nav-item" data-panel="guest">🔍 Guest View</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-label">Sistem</div>
+    <div class="nav-item" data-panel="health">🩺 Health Check</div>
+    <div class="nav-item" data-panel="settings">⚙️ Pengaturan</div>
+    <div class="sidebar-footer">OrbitaConnect v1.0<br>Guest &amp; Supplier Mini API</div>
+  </nav>
+
+  <main id="main">
+
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="page-header"><h1>Dashboard</h1><p>Ringkasan data hotel dan aktivitas API.</p></div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Total Hotel</div><div class="metric-value amber" id="m-hotels">—</div></div>
+        <div class="metric"><div class="metric-label">Tipe Kamar</div><div class="metric-value" id="m-rooms">—</div></div>
+        <div class="metric"><div class="metric-label">Status API</div><div class="metric-value" id="m-status" style="font-size:16px;padding-top:4px;">Memuat...</div></div>
+        <div class="metric"><div class="metric-label">Harga Rata-rata</div><div class="metric-value" id="m-price" style="font-size:18px;padding-top:4px;">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Data Terbaru</div>
+        <div id="dash-table-wrap"><div class="empty-state"><div class="empty-state-icon">🏨</div>Belum ada data.</div></div>
+      </div>
+    </div>
+
+    <!-- SUPPLIER INGEST -->
+    <div class="panel" id="panel-supplier">
+      <div class="page-header"><h1>Supplier Ingest</h1><p>Kirim data hotel, harga, dan ketersediaan kamar ke API.</p></div>
+      <div class="card">
+        <div class="card-title">Informasi Hotel</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Supplier ID</label><input type="text" id="sup-id" value="SUP-001" /></div>
+          <div class="form-group"><label>External Hotel ID</label><input type="text" id="ext-id" value="HTL-01" /></div>
+          <div class="form-group full"><label>Nama Hotel</label><input type="text" id="hotel-name" placeholder="Grand Hotel Jakarta" /></div>
+        </div>
+        <div class="dynamic-section">
+          <div class="dynamic-section-header">
+            <div class="dynamic-section-title">Daftar Harga (Rates)</div>
+            <button class="btn btn-ghost btn-sm" onclick="addRate()">+ Tambah Harga</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 32px;gap:8px;padding:0 0 6px 12px;">
+            <span style="font-size:11px;color:var(--text-dim);">Tipe Kamar</span>
+            <span style="font-size:11px;color:var(--text-dim);">Harga (IDR)</span>
+            <span style="font-size:11px;color:var(--text-dim);">Dari Tanggal</span>
+            <span style="font-size:11px;color:var(--text-dim);">Sampai Tanggal</span>
+            <span></span>
+          </div>
+          <div class="dynamic-rows" id="rates-list"></div>
+        </div>
+        <div class="dynamic-section" style="margin-top:1.75rem;">
+          <div class="dynamic-section-header">
+            <div class="dynamic-section-title">Ketersediaan Kamar</div>
+            <button class="btn btn-ghost btn-sm" onclick="addAvail()">+ Tambah Stok</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;padding:0 0 6px 12px;">
+            <span style="font-size:11px;color:var(--text-dim);">Tipe Kamar</span>
+            <span style="font-size:11px;color:var(--text-dim);">Tanggal</span>
+            <span style="font-size:11px;color:var(--text-dim);">Jumlah Kamar</span>
+            <span></span>
+          </div>
+          <div class="dynamic-rows" id="avail-list"></div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" id="ingest-btn" onclick="doIngest()">
+            <span class="spinner" id="ingest-spinner"></span>Kirim ke API
+          </button>
+          <button class="btn btn-outline" onclick="resetForm()">Reset Form</button>
+          <div style="flex:1"></div>
+          <span style="font-size:12px;color:var(--text-dim);">Data dikirim ke POST /ingest</span>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Response API</div><div class="response-box" id="ingest-response">— Belum ada request —</div></div>
+    </div>
+
+    <!-- KELOLA HOTEL (UPDATE & DELETE) -->
+    <div class="panel" id="panel-manage">
+      <div class="page-header"><h1>Kelola Hotel</h1><p>Update nama hotel atau hapus hotel dari database.</p></div>
+      <div class="card">
+        <div class="action-row" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:1rem;">
+          <button class="btn btn-primary btn-sm" onclick="loadManage()">🔄 Refresh Data</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Hotel</th>
+                <th>Supplier ID</th>
+                <th>External ID</th>
+                <th>Rates</th>
+                <th>Availability</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="manage-body">
+              <tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">✏️</div>Klik Refresh untuk memuat data.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Response API</div><div class="response-box" id="manage-response">— Belum ada aksi —</div></div>
+    </div>
+
+    <!-- GUEST VIEW -->
+    <div class="panel" id="panel-guest">
+      <div class="page-header"><h1>Guest View</h1><p>Cari hotel beserta harga dan ketersediaan kamar.</p></div>
+      <div class="card">
+        <div class="card-title">Filter Pencarian</div>
+        <div class="search-row">
+          <div class="form-group"><label>Filter Tanggal (Opsional)</label><input type="date" id="guest-date" /></div>
+          <button class="btn btn-primary" id="search-btn" onclick="doSearch()"><span class="spinner" id="search-spinner"></span>Cari Hotel</button>
+          <button class="btn btn-outline" onclick="clearFilter()">Tampilkan Semua</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nama Hotel</th><th>Tipe Kamar</th><th>Harga</th><th>Mata Uang</th><th>Stok</th><th>Tanggal</th></tr></thead>
+            <tbody id="hotels-body"><tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">🔍</div>Klik "Cari Hotel" atau "Tampilkan Semua".</div></td></tr></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-dim);" id="result-count"></div>
+      </div>
+      <div class="card"><div class="card-title">Response Mentah</div><div class="response-box" id="guest-response">— Belum ada request —</div></div>
+    </div>
+
+    <!-- HEALTH CHECK -->
+    <div class="panel" id="panel-health">
+      <div class="page-header"><h1>Health Check</h1><p>Pantau status koneksi API dan database.</p></div>
+      <div class="card">
+        <div class="card-title">Status Sistem</div>
+        <div class="health-grid">
+          <div class="health-item"><div class="health-icon idle" id="h-api-icon">🌐</div><div><div class="health-info-label">API Server</div><div class="health-info-value" id="h-api-val">Belum dicek</div></div></div>
+          <div class="health-item"><div class="health-icon idle" id="h-db-icon">🗄️</div><div><div class="health-info-label">Database</div><div class="health-info-value" id="h-db-val">Belum dicek</div></div></div>
+          <div class="health-item"><div class="health-icon idle" id="h-ping-icon">⏱️</div><div><div class="health-info-label">Latency</div><div class="health-info-value" id="h-ping-val">—</div></div></div>
+          <div class="health-item"><div class="health-icon idle" id="h-time-icon">🕐</div><div><div class="health-info-label">Waktu Cek Terakhir</div><div class="health-info-value" id="h-time-val">—</div></div></div>
+        </div>
+        <div class="action-row"><button class="btn btn-primary" onclick="doHealthCheck()">Cek Sekarang</button><span style="font-size:12px;color:var(--text-dim);">Auto-refresh setiap 30 detik</span></div>
+      </div>
+      <div class="card"><div class="card-title">Response API</div><div class="response-box" id="health-response">— Klik "Cek Sekarang" —</div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="panel" id="panel-settings">
+      <div class="page-header"><h1>Pengaturan</h1><p>Konfigurasi koneksi ke API server.</p></div>
+      <div class="card">
+        <div class="card-title">Koneksi API</div>
+        <div class="form-group"><label>Base URL API</label><input type="text" id="cfg-url" value="http://localhost:8000" /></div>
+        <div class="action-row"><button class="btn btn-primary" onclick="saveSettings()">Simpan & Uji Koneksi</button><button class="btn btn-outline" onclick="resetSettings()">Reset ke Default</button></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Endpoint Tersedia</div>
+        <table style="font-size:13px;">
+          <tbody>
+            <tr><td style="padding:8px 12px 8px 0;"><span class="badge badge-amber">POST</span></td><td style="padding:8px 0;color:var(--text-muted);font-family:'Courier New',monospace;">/ingest</td><td style="padding:8px 0 8px 1rem;color:var(--text-dim);">Supplier kirim data hotel</td></tr>
+            <tr><td style="padding:8px 12px 8px 0;"><span class="badge badge-green">GET</span></td><td style="padding:8px 0;color:var(--text-muted);font-family:'Courier New',monospace;">/hotels</td><td style="padding:8px 0 8px 1rem;color:var(--text-dim);">Guest lihat daftar hotel</td></tr>
+            <tr><td style="padding:8px 12px 8px 0;"><span class="badge badge-green">GET</span></td><td style="padding:8px 0;color:var(--text-muted);font-family:'Courier New',monospace;">/hotels/list</td><td style="padding:8px 0 8px 1rem;color:var(--text-dim);">Daftar hotel untuk manajemen</td></tr>
+            <tr><td style="padding:8px 12px 8px 0;"><span class="badge badge-amber">PUT</span></td><td style="padding:8px 0;color:var(--text-muted);font-family:'Courier New',monospace;">/hotels/{id}</td><td style="padding:8px 0 8px 1rem;color:var(--text-dim);">Update nama hotel</td></tr>
+            <tr><td style="padding:8px 12px 8px 0;"><span class="badge badge-red">DEL</span></td><td style="padding:8px 0;color:var(--text-muted);font-family:'Courier New',monospace;">/hotels/{id}</td><td style="padding:8px 0 8px 1rem;color:var(--text-dim);">Hapus hotel</td></tr>
+            <tr><td style="padding:8px 12px 8px 0;"><span class="badge badge-green">GET</span></td><td style="padding:8px 0;color:var(--text-muted);font-family:'Courier New',monospace;">/health</td><td style="padding:8px 0 8px 1rem;color:var(--text-dim);">Cek status database</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal Edit -->
+<div class="modal-overlay hidden" id="modal-edit">
+  <div class="modal">
+    <div class="modal-title">✏️ Update Nama Hotel</div>
+    <div class="form-group">
+      <label>Nama Hotel Baru</label>
+      <input type="text" id="edit-name" placeholder="Nama hotel baru" />
+    </div>
+    <input type="hidden" id="edit-id" />
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="doUpdate()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Konfirmasi Delete -->
+<div class="modal-overlay hidden" id="modal-delete">
+  <div class="modal">
+    <div class="modal-title">🗑️ Hapus Hotel</div>
+    <p style="color:var(--text-muted);font-size:14px;margin-bottom:1rem;">Yakin ingin menghapus hotel <strong id="delete-name" style="color:var(--text-main);"></strong>? Semua data harga dan ketersediaan akan ikut terhapus.</p>
+    <input type="hidden" id="delete-id" />
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+      <button class="btn btn-danger" onclick="doDelete()">Ya, Hapus</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+  let API_BASE = localStorage.getItem('orbita_api') || 'http://localhost:8000';
+  document.getElementById('cfg-url').value = API_BASE;
+  document.getElementById('api-url-display').textContent = 'API: ' + new URL(API_BASE).host;
+
+  // ── Navigation ──
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('panel-' + el.dataset.panel).classList.add('active');
+      if (el.dataset.panel === 'manage') loadManage();
+    });
+  });
+
+  // ── Toast ──
+  function toast(msg, type='info') {
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    const icons = { success:'✅', error:'❌', info:'💡' };
+    t.innerHTML = `<span>${icons[type]||'💡'}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+
+  // ── Settings ──
+  function saveSettings() {
+    API_BASE = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+    localStorage.setItem('orbita_api', API_BASE);
+    document.getElementById('api-url-display').textContent = 'API: ' + new URL(API_BASE).host;
+    doHealthCheck();
+    toast('Pengaturan disimpan.', 'info');
+  }
+  function resetSettings() {
+    API_BASE = 'http://localhost:8000';
+    document.getElementById('cfg-url').value = API_BASE;
+    localStorage.removeItem('orbita_api');
+    toast('Reset ke default.', 'info');
+  }
+
+  // ── Dynamic Form ──
+  let rowCount = 0;
+  function addRate(rt='', price='', vf='', vt='') {
+    rowCount++;
+    const id = 'r' + rowCount;
+    const today = new Date().toISOString().split('T')[0];
+    const next  = new Date(Date.now()+30*86400000).toISOString().split('T')[0];
+    const row = document.createElement('div');
+    row.className = 'dynamic-row rate-row'; row.id = id;
+    row.innerHTML = `
+      <div class="form-group" style="margin:0;"><input type="text" placeholder="Deluxe" value="${rt}" /></div>
+      <div class="form-group" style="margin:0;"><input type="number" placeholder="850000" min="0" value="${price}" /></div>
+      <div class="form-group" style="margin:0;"><input type="date" value="${vf||today}" /></div>
+      <div class="form-group" style="margin:0;"><input type="date" value="${vt||next}" /></div>
+      <button class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>`;
+    document.getElementById('rates-list').appendChild(row);
+  }
+  function addAvail(rt='', dt='', rooms='') {
+    rowCount++;
+    const id = 'a' + rowCount;
+    const today = new Date().toISOString().split('T')[0];
+    const row = document.createElement('div');
+    row.className = 'dynamic-row avail-row'; row.id = id;
+    row.innerHTML = `
+      <div class="form-group" style="margin:0;"><input type="text" placeholder="Deluxe" value="${rt}" /></div>
+      <div class="form-group" style="margin:0;"><input type="date" value="${dt||today}" /></div>
+      <div class="form-group" style="margin:0;"><input type="number" placeholder="5" min="0" value="${rooms}" /></div>
+      <button class="remove-btn" onclick="document.getElementById('${id}').remove()">✕</button>`;
+    document.getElementById('avail-list').appendChild(row);
+  }
+  addRate('Deluxe', '850000');
+  addAvail('Deluxe', '', '5');
+
+  function resetForm() {
+    document.getElementById('sup-id').value = 'SUP-001';
+    document.getElementById('ext-id').value = 'HTL-01';
+    document.getElementById('hotel-name').value = '';
+    document.getElementById('rates-list').innerHTML = '';
+    document.getElementById('avail-list').innerHTML = '';
+    addRate('Deluxe', '850000');
+    addAvail('Deluxe', '', '5');
+    document.getElementById('ingest-response').textContent = '— Form direset —';
+  }
+
+  // ── Ingest ──
+  function collectRates() {
+    return Array.from(document.querySelectorAll('#rates-list .dynamic-row')).map(row => {
+      const i = row.querySelectorAll('input');
+      return { room_type: i[0].value.trim(), price: parseFloat(i[1].value)||0, valid_from: i[2].value, valid_to: i[3].value };
+    }).filter(r => r.room_type);
+  }
+  function collectAvail() {
+    return Array.from(document.querySelectorAll('#avail-list .dynamic-row')).map(row => {
+      const i = row.querySelectorAll('input');
+      return { room_type: i[0].value.trim(), date: i[1].value, rooms_left: parseInt(i[2].value)||0 };
+    }).filter(a => a.room_type);
+  }
+
+  async function doIngest() {
+    const btn = document.getElementById('ingest-btn');
+    const spinner = document.getElementById('ingest-spinner');
+    const box = document.getElementById('ingest-response');
+    const payload = {
+      supplier_id: document.getElementById('sup-id').value.trim(),
+      external_hotel_id: document.getElementById('ext-id').value.trim(),
+      name: document.getElementById('hotel-name').value.trim(),
+      rates: collectRates(), availability: collectAvail(),
+    };
+    if (!payload.supplier_id || !payload.name) { toast('Supplier ID dan Nama Hotel wajib diisi.', 'error'); return; }
+    btn.disabled = true; spinner.style.display = 'inline-block'; box.textContent = 'Mengirim...';
+    try {
+      const res = await fetch(API_BASE + '/ingest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      box.innerHTML = res.ok ? `<span class="ok">// ✅ ${res.status} OK</span>\n${JSON.stringify(data,null,2)}` : `<span class="err">// ❌ ${res.status}</span>\n${JSON.stringify(data,null,2)}`;
+      if (res.ok) { toast('Data hotel berhasil dikirim!', 'success'); loadDashboard(); }
+      else toast('Gagal: ' + (data.detail||'Error'), 'error');
+    } catch(e) {
+      box.innerHTML = `<span class="err">// ❌ Network Error</span>\n${e.message}`;
+      toast('Tidak dapat terhubung ke API.', 'error');
+    } finally { btn.disabled = false; spinner.style.display = 'none'; }
+  }
+
+  // ── Manage (Update & Delete) ──
+  async function loadManage() {
+    const tbody = document.getElementById('manage-body');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim);">Memuat...</td></tr>';
+    try {
+      const res = await fetch(API_BASE + '/hotels/list');
+      const data = await res.json();
+      if (!data.hotels || data.hotels.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">✏️</div>Belum ada hotel. Tambahkan lewat Supplier Ingest.</div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.hotels.map(h => `
+        <tr>
+          <td><strong>${h.name}</strong></td>
+          <td class="td-muted">${h.supplier_id}</td>
+          <td class="td-muted">${h.external_id}</td>
+          <td><span class="badge badge-amber">${h.total_rates} rate</span></td>
+          <td><span class="badge badge-green">${h.total_availability} slot</span></td>
+          <td>
+            <div class="tbl-actions">
+              <button class="btn btn-ghost btn-sm" onclick="openEdit('${h.id}','${h.name.replace(/'/g,"\\'")}')">✏️ Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="openDelete('${h.id}','${h.name.replace(/'/g,"\\'")}')">🗑️ Hapus</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);">Gagal terhubung ke API.</div></td></tr>';
+    }
+  }
+
+  function openEdit(id, name) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-name').value = name;
+    document.getElementById('modal-edit').classList.remove('hidden');
+  }
+  function openDelete(id, name) {
+    document.getElementById('delete-id').value = id;
+    document.getElementById('delete-name').textContent = name;
+    document.getElementById('modal-delete').classList.remove('hidden');
+  }
+  function closeModal() {
+    document.getElementById('modal-edit').classList.add('hidden');
+    document.getElementById('modal-delete').classList.add('hidden');
+  }
+
+  async function doUpdate() {
+    const id   = document.getElementById('edit-id').value;
+    const name = document.getElementById('edit-name').value.trim();
+    if (!name) { toast('Nama hotel tidak boleh kosong.', 'error'); return; }
+    try {
+      const res = await fetch(API_BASE + '/hotels/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+      const data = await res.json();
+      document.getElementById('manage-response').innerHTML = res.ok
+        ? `<span class="ok">// ✅ Update berhasil</span>\n${JSON.stringify(data,null,2)}`
+        : `<span class="err">// ❌ Error</span>\n${JSON.stringify(data,null,2)}`;
+      if (res.ok) { toast('Hotel berhasil diupdate!', 'success'); closeModal(); loadManage(); loadDashboard(); }
+      else toast('Gagal update: ' + (data.detail||'Error'), 'error');
+    } catch(e) { toast('Network error.', 'error'); }
+  }
+
+  async function doDelete() {
+    const id   = document.getElementById('delete-id').value;
+    const name = document.getElementById('delete-name').textContent;
+    try {
+      const res = await fetch(API_BASE + '/hotels/' + id, { method:'DELETE' });
+      const data = await res.json();
+      document.getElementById('manage-response').innerHTML = res.ok
+        ? `<span class="ok">// ✅ Delete berhasil</span>\n${JSON.stringify(data,null,2)}`
+        : `<span class="err">// ❌ Error</span>\n${JSON.stringify(data,null,2)}`;
+      if (res.ok) { toast(`Hotel "${name}" berhasil dihapus!`, 'success'); closeModal(); loadManage(); loadDashboard(); }
+      else toast('Gagal hapus: ' + (data.detail||'Error'), 'error');
+    } catch(e) { toast('Network error.', 'error'); }
+  }
+
+  // ── Guest View ──
+  async function doSearch() {
+    const btn = document.getElementById('search-btn');
+    const spinner = document.getElementById('search-spinner');
+    const dateVal = document.getElementById('guest-date').value;
+    btn.disabled = true; spinner.style.display = 'inline-block';
+    await fetchHotels(API_BASE + '/hotels' + (dateVal ? '?date='+dateVal : ''));
+    btn.disabled = false; spinner.style.display = 'none';
+  }
+  async function clearFilter() {
+    document.getElementById('guest-date').value = '';
+    await fetchHotels(API_BASE + '/hotels');
+  }
+  async function fetchHotels(url) {
+    const tbody = document.getElementById('hotels-body');
+    const box   = document.getElementById('guest-response');
+    const count = document.getElementById('result-count');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim);">Memuat...</td></tr>';
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      box.innerHTML = res.ok ? `<span class="ok">// ✅ ${res.status} OK</span>\n${JSON.stringify(data,null,2)}` : `<span class="err">// ❌ ${res.status}</span>\n${JSON.stringify(data,null,2)}`;
+      if (res.ok && data.hotels && data.hotels.length > 0) {
+        count.textContent = data.total + ' hasil ditemukan';
+        tbody.innerHTML = data.hotels.map(h => `
+          <tr>
+            <td>${h.hotel_name}</td>
+            <td class="td-muted">${h.room_type}</td>
+            <td><strong>Rp ${Number(h.price).toLocaleString('id-ID')}</strong></td>
+            <td><span class="badge badge-amber">${h.currency||'IDR'}</span></td>
+            <td><span class="badge ${h.rooms_left>0?'badge-green':'badge-red'}">${h.rooms_left} kamar</span></td>
+            <td class="td-muted">${h.available_date||'—'}</td>
+          </tr>`).join('');
+      } else {
+        count.textContent = '';
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">🏨</div>Tidak ada hotel tersedia.</div></td></tr>`;
+      }
+    } catch(e) {
+      box.innerHTML = `<span class="err">// ❌ Network Error</span>\n${e.message}`;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--danger);">Gagal terhubung ke API.</div></td></tr>`;
+    }
+  }
+
+  // ── Health Check ──
+  async function doHealthCheck() {
+    const box = document.getElementById('health-response');
+    const dbDot = document.getElementById('db-dot');
+    const dbLabel = document.getElementById('db-label');
+    dbDot.className = 'dot checking'; dbLabel.textContent = 'Memeriksa...';
+    const start = Date.now();
+    try {
+      const res  = await fetch(API_BASE + '/health');
+      const data = await res.json();
+      const ms   = Date.now() - start;
+      const ok   = res.ok && data.status === 'ok';
+      box.innerHTML = `<span class="${ok?'ok':'err'}">// ${ok?'✅':'❌'} ${res.status}</span>\n${JSON.stringify(data,null,2)}`;
+      dbDot.className = 'dot ' + (ok?'ok':'error');
+      dbLabel.textContent = ok ? 'Terhubung' : 'Error';
+      setHealthItem('h-api', ok, ok?'Online':'Offline');
+      setHealthItem('h-db', ok && data.database==='connected', ok?'Connected':'Disconnected');
+      setHealthItem('h-ping', ok, ms+' ms');
+      setHealthItem('h-time', true, new Date().toLocaleTimeString('id-ID'));
+      document.getElementById('m-status').textContent = ok?'✅ Online':'❌ Offline';
+      document.getElementById('m-status').style.color = ok?'var(--success)':'var(--danger)';
+    } catch(e) {
+      box.innerHTML = `<span class="err">// ❌ Tidak dapat terhubung</span>\n${e.message}`;
+      dbDot.className = 'dot error'; dbLabel.textContent = 'Offline';
+      setHealthItem('h-api', false, 'Offline');
+      setHealthItem('h-db', false, 'Tidak diketahui');
+    }
+  }
+  function setHealthItem(id, ok, val) {
+    const icon = document.getElementById(id+'-icon');
+    const valEl = document.getElementById(id+'-val');
+    if (valEl) valEl.textContent = val;
+    if (icon) icon.className = 'health-icon ' + (ok?'ok':'error');
+  }
+
+  // ── Dashboard ──
+  async function loadDashboard() {
+    try {
+      const res  = await fetch(API_BASE + '/hotels');
+      if (!res.ok) return;
+      const data = await res.json();
+      const hotels = data.hotels || [];
+      const uniqueHotels = [...new Set(hotels.map(h=>h.hotel_name))];
+      const uniqueRooms  = [...new Set(hotels.map(h=>h.room_type))];
+      const avgPrice = hotels.length ? hotels.reduce((s,h)=>s+Number(h.price),0)/hotels.length : 0;
+      document.getElementById('m-hotels').textContent = uniqueHotels.length;
+      document.getElementById('m-rooms').textContent  = uniqueRooms.length;
+      document.getElementById('m-price').textContent  = hotels.length ? 'Rp '+Math.round(avgPrice).toLocaleString('id-ID') : '—';
+      const wrap = document.getElementById('dash-table-wrap');
+      if (!hotels.length) { wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏨</div>Belum ada data.</div>`; return; }
+      wrap.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Nama Hotel</th><th>Tipe Kamar</th><th>Harga</th><th>Stok</th><th>Tanggal</th></tr></thead>
+        <tbody>${hotels.slice(0,10).map(h=>`<tr>
+          <td>${h.hotel_name}</td><td class="td-muted">${h.room_type}</td>
+          <td>Rp ${Number(h.price).toLocaleString('id-ID')}</td>
+          <td><span class="badge ${h.rooms_left>0?'badge-green':'badge-red'}">${h.rooms_left}</span></td>
+          <td class="td-muted">${h.available_date||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>${hotels.length>10?`<div style="padding:10px 12px;font-size:12px;color:var(--text-dim);">Menampilkan 10 dari ${hotels.length} data.</div>`:''}</div>`;
+    } catch(e) {}
+  }
+
+  doHealthCheck();
+  loadDashboard();
+  setInterval(doHealthCheck, 30000);
+</script>
+</body>
+</html>
